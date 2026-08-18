@@ -1,0 +1,57 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "ez.minar.mixins",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "entity.ClientPlayerEntityMixin",
+    "entity.ClientPlayerSilentRotationMixin",
+    "entity.ClientPlayerInteractionManagerMixin",
+    "entity.LivingEntityMixin",
+    "entity.EntityMixin",
+    "entity.EntityRotationVectorMixin",
+    "render.GameRendererMixin",
+    "render.MinecraftClientMixin",
+    "render.AtmosphericFogModifierMixin",
+    "render.CameraMixin",
+    "render.FogRendererMixin",
+    "render.HeldItemRendererMixin",
+    "render.GuiRendererMixin",
+    "render.ParticleManagerMixin",
+    "render.InGameHudMixin",
+    "render.InGameOverlayRendererMixin",
+    "render.LivingEntityRendererMixin",
+    "render.SilentRotationRenderMixin",
+    "render.StatusEffectFogModifierMixin",
+    "render.WorldRendererMixin",
+    "render.RenderTickCounterDynamicMixin",
+    "world.ClientWorldMixin",
+    "screen.TitleScreenMixin",
+    "screen.DrawContextMixin",
+    "screen.TextButtonWidgetMixin",
+    "screen.ChatInputSuggestorMixin",
+    "screen.ChatScreenMixin",
+    "screen.HandledScreenMixin",
+    "render.PlayerListHudMixin",
+    "network.ClientPlayNetworkHandlerMixin",
+    "interfaces.ILivingEntity",
+    "interfaces.IClientPlayerInteractionManager",
+    "interfaces.IChatInputSuggestor",
+    "interfaces.IHandledScreen",
+    "interfaces.IMinecraftClient",
+    "interfaces.ISimpleOption",
+    "interfaces.IInput",
+    "input.KeyboardInputMixin",
+    "input.KeyboardMovementInputMixin"
+  ],
+  "client": [
+    "network.ClientConnectionMixin",
+    "network.PlayerInteractItemC2SPacketMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

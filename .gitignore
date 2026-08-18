@@ -1,0 +1,22 @@
+# Gradle build files
+.gradle/
+build/
+bin/
+out/
+
+# Local logs and runtime files
+run/
+logs/
+crash-reports/
+
+# IDE User files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+.idea/dictionaries/
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db

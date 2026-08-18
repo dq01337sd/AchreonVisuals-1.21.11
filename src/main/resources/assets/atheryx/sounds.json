@@ -1,0 +1,87 @@
+{
+  "smooth_on": {
+    "sounds": [
+      "atheryx:smooth_on"
+    ]
+  },
+  "smooth_off": {
+    "sounds": [
+      "atheryx:smooth_off"
+    ]
+  },
+  "celestial_on": {
+    "sounds": [
+      "atheryx:celestial_on"
+    ]
+  },
+  "celestial_off": {
+    "sounds": [
+      "atheryx:celestial_off"
+    ]
+  },
+  "blop_on": {
+    "sounds": [
+      "atheryx:blop_on"
+    ]
+  },
+  "blop_off": {
+    "sounds": [
+      "atheryx:blop_off"
+    ]
+  },
+  "settingclose": {
+    "sounds": [
+      "atheryx:settingclose"
+    ]
+  },
+  "keyboard_1": {
+    "sounds": [
+      "atheryx:keyboard_sounds/1"
+    ]
+  },
+  "keyboard_2": {
+    "sounds": [
+      "atheryx:keyboard_sounds/2"
+    ]
+  },
+  "keyboard_3": {
+    "sounds": [
+      "atheryx:keyboard_sounds/3"
+    ]
+  },
+  "keyboard_4": {
+    "sounds": [
+      "atheryx:keyboard_sounds/4"
+    ]
+  },
+  "keyboard_5": {
+    "sounds": [
+      "atheryx:keyboard_sounds/5"
+    ]
+  },
+  "keyboard_6": {
+    "sounds": [
+      "atheryx:keyboard_sounds/6"
+    ]
+  },
+  "keyboard_7": {
+    "sounds": [
+      "atheryx:keyboard_sounds/7"
+    ]
+  },
+  "gui_open": {
+    "sounds": [
+      "atheryx:gui_open"
+    ]
+  },
+  "gui_close": {
+    "sounds": [
+      "atheryx:gui_close"
+    ]
+  },
+  "switchcategory": {
+    "sounds": [
+      "atheryx:switchcategory"
+    ]
+  }
+}
