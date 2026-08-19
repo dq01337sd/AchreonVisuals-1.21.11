@@ -6,6 +6,7 @@ import ez.minar.system.api.FunctionManager;
 import ez.minar.system.api.NewFunction;
 import ez.minar.system.events.EventHandler;
 import ez.minar.system.events.impl.Render2DEvent;
+import ez.minar.system.events.impl.UpdateEvent;
 import ez.minar.system.menu.ClickGui;
 import ez.minar.system.menu.ThemeManager;
 import ez.minar.system.settings.impl.BooleanSetting;
@@ -139,10 +140,15 @@ public class HUD extends Function {
     private float watermarkX = 8f;
     private float watermarkY = 8f;
     private float watermarkWidth;
+    private float watermarkHeight = WATERMARK_HEIGHT;
     private float watermarkScale = 1.0f;
-    private boolean watermarkLogo = true;
     private boolean watermarkFps = true;
+    private boolean watermarkLogo = true;
     private boolean watermarkPing = true;
+    private boolean watermarkServer = true;
+    private boolean watermarkTps = true;
+    private long lastTickTime = -1L;
+    private float currentTps = 20f;
     private float keybindsX = 8f;
     private float keybindsY = 37f;
     private float keybindsWidth;
@@ -221,7 +227,7 @@ public class HUD extends Function {
             hotbarLiquidGlass.setVisible(false);
             hotbarFluidGlass.setVisible(false);
         });
-        addSettings(watermark, targetHud, hotbar);
+        addSettings(watermark, targetHud, hotbar, keybinds, potions, scoreboard);
     }
 
     @EventHandler
@@ -267,63 +273,97 @@ public class HUD extends Function {
         }
     }
 
+    @EventHandler
+    public void onUpdate(UpdateEvent event) {
+        if (lastTickTime < 0L) {
+            lastTickTime = System.currentTimeMillis();
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long delta = now - lastTickTime;
+        lastTickTime = now;
+        if (delta > 0L) {
+            currentTps = currentTps * 0.9f + (1000f / delta) * 0.1f;
+        }
+    }
+
+    private String getServerName() {
+        if (mc.getCurrentServerEntry() != null && mc.getCurrentServerEntry().address != null) {
+            return mc.getCurrentServerEntry().address;
+        }
+        return "\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u0430\u044f";
+    }
+
     private void renderWatermark(DrawContext context, float x, float y) {
-        String title = "Achrone";
-        String fps = mc.getCurrentFps() + "fps";
-        String ping = getPing() + "ms";
-        String fpsIcon = "H";
-        String pingIcon = "Y";
+        MsdfFont font = Msdf.SF_REGULAR;
 
         float s = watermarkScale;
-        float height = WATERMARK_HEIGHT * s;
-        float iconSize = WATERMARK_ICON_SIZE * s;
-        float textSize = WATERMARK_TEXT_SIZE * s;
-        float leftPad = 0f * s;
-        float rightPad = 4f * s;
-        float titleOffset = 0f * s;
-        float sepPad = 8f * s;
-        float sepWidth = 1f * s;
-        float statGap = 4f * s;
-        float titleGap = 12f * s;
+        float textSize = 7.5f * s;
+        float elemHeight = 8f * s + 2f * s;
+        float elemPadX = 3f * s;
+        float elemRadius = 2f * s;
+        float gapX = 2.5f * s;
+        float gapY = 2.5f * s;
 
-        MsdfFont font = Msdf.SF_REGULAR;
-        int titleWidth = (int) Msdf.width(font, title, textSize);
-        int fpsWidth = (int) Msdf.width(font, fps, textSize);
-        int pingWidth = (int) Msdf.width(font, ping, textSize);
-        float iconW = Msdf.width(Msdf.ICONS, fpsIcon, iconSize);
+        String fps = "Fps: " + mc.getCurrentFps();
+        String logo = "Achrone";
+        String ping = "Ping: " + getPing() + "ms";
+        String server = "Server: " + getServerName();
+        String tps = "Tps: " + String.format(Locale.US, "%.1f", currentTps);
 
-        float contentW = 0f;
-        if (watermarkLogo) contentW += titleOffset + titleWidth + titleGap;
-        if (watermarkFps) contentW += sepPad * 2f + sepWidth + iconW + statGap + fpsWidth;
-        if (watermarkPing) contentW += sepPad * 2f + sepWidth + iconW + statGap + pingWidth;
+        Color themeColor = ThemeManager.getThemeColor();
+        Color textColor = new Color(238, 238, 242);
+        Color bgColor = new Color(18, 18, 22, 200);
 
-        float width = leftPad + contentW + rightPad;
+        List<String> row1 = new ArrayList<>();
+        if (watermarkFps) row1.add(fps);
+        if (watermarkLogo) row1.add(logo);
+        if (watermarkPing) row1.add(ping);
+
+        List<String> row2 = new ArrayList<>();
+        if (watermarkServer) row2.add(server);
+        if (watermarkTps) row2.add(tps);
+
+        if (row1.isEmpty() && row2.isEmpty()) {
+            return;
+        }
+
+        float row1W = 0f;
+        for (String e : row1) {
+            row1W += elemPadX * 2f + Msdf.width(font, e, textSize);
+        }
+        row1W += Math.max(0, row1.size() - 1) * gapX;
+
+        float row2W = 0f;
+        for (String e : row2) {
+            row2W += elemPadX * 2f + Msdf.width(font, e, textSize);
+        }
+        row2W += Math.max(0, row2.size() - 1) * gapX;
+
+        boolean hasRow2 = !row2.isEmpty();
+        float width = Math.max(row1W, row2W);
+        float height = elemHeight * (hasRow2 ? 2 : 1) + (hasRow2 ? gapY : 0f);
         watermarkWidth = width;
+        watermarkHeight = height;
 
-        renderPanel("WatermarkTitle", x, y, width, height, 4f * s);
+        float row2Offset = hasRow2 ? elemHeight + gapY : 0f;
+        float textY1 = y + (elemHeight - Msdf.height(font, textSize)) / 2f;
+        float textY2 = textY1 + row2Offset;
 
-        Color textColor = ThemeManager.getThemeColor();
-        Color statColor = new Color(238, 238, 242);
-        float textY = y + (height - Msdf.height(font, textSize)) / 2f;
-        float iconY = y + (height - Msdf.height(Msdf.ICONS, iconSize)) / 2f;
-
-        float cursorX = x + leftPad;
-        if (watermarkLogo) {
-            RenderUtil.text(context, font, cursorX + titleOffset, textY, title, textSize, textColor);
-            cursorX += titleOffset + titleWidth + titleGap;
+        float cx1 = x;
+        for (String e : row1) {
+            float w = elemPadX * 2f + Msdf.width(font, e, textSize);
+            RenderUtil.rect(cx1, y, w, elemHeight, elemRadius, bgColor);
+            RenderUtil.text(context, font, cx1 + elemPadX, textY1, e, textSize, themeColor);
+            cx1 += w + gapX;
         }
-        if (watermarkFps) {
-            cursorX = renderWatermarkDivider(context, cursorX, y, sepPad, sepWidth, height);
-            RenderUtil.text(context, Msdf.ICONS, cursorX, iconY, fpsIcon, iconSize, textColor);
-            cursorX += iconW + statGap;
-            RenderUtil.text(context, font, cursorX, textY, fps, textSize, statColor);
-            cursorX += fpsWidth;
-        }
-        if (watermarkPing) {
-            cursorX = renderWatermarkDivider(context, cursorX, y, sepPad, sepWidth, height);
-            RenderUtil.text(context, Msdf.ICONS, cursorX, iconY, pingIcon, iconSize, textColor);
-            cursorX += iconW + statGap;
-            RenderUtil.text(context, font, cursorX, textY, ping, textSize, statColor);
+
+        float cx2 = x;
+        for (String e : row2) {
+            float w = elemPadX * 2f + Msdf.width(font, e, textSize);
+            RenderUtil.rect(cx2, y + row2Offset, w, elemHeight, elemRadius, bgColor);
+            RenderUtil.text(context, font, cx2 + elemPadX, textY2, e, textSize, textColor);
+            cx2 += w + gapX;
         }
     }
 
@@ -759,34 +799,26 @@ public class HUD extends Function {
             renderTargetHudStyleOption(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 3f, "\u041a\u0440\u0443\u0433\u043b\u044b\u0439", eased);
         }
         if (styleMenuTarget == HudElement.WATERMARK) {
-            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW, "Logo", watermarkLogo, eased);
-            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 2f, "Ping", watermarkPing, eased);
-            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 3f, "Fps", watermarkFps, eased);
-            renderWatermarkSizeSlider(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 4f, eased);
+            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW, "Fps", watermarkFps, eased);
+            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 2f, "Logo", watermarkLogo, eased);
+            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 3f, "Ping", watermarkPing, eased);
+            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 4f, "Server", watermarkServer, eased);
+            renderWatermarkToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW * 5f, "Tps", watermarkTps, eased);
+            float sliderY = drawY + TARGET_HUD_STYLE_MENU_ROW * 6f;
+            RenderUtil.text(context, x + 8f, sliderY + 4f, "Size " + Math.round(watermarkScale * 100) + "%", 7f,
+                    withOpacity(new Color(225, 225, 230), eased));
+            float barX = x + 10f;
+            float barY = sliderY + TARGET_HUD_STYLE_MENU_ROW - 9f;
+            float barW = HUD_STYLE_MENU_WIDTH - 20f;
+            RenderUtil.rect(barX, barY, barW, 2f, 1f, withOpacity(new Color(80, 80, 85), eased));
+            float t = (watermarkScale - 0.5f) / 1.0f;
+            float knobX = barX + t * barW;
+            RenderUtil.rect(knobX - 2f, barY - 3f, 4f, 8f, 1f, withOpacity(ThemeManager.getThemeColor(), eased));
+        }
+        if (styleMenuTarget == HudElement.SCOREBOARD) {
+            renderHudStyleToggle(context, x, drawY + TARGET_HUD_STYLE_MENU_ROW, "Scoreboard", scoreboard.isEnabled(), eased);
         }
         Scissor.pop();
-    }
-
-    private void renderWatermarkToggle(DrawContext context, float x, float y, String label, boolean enabled, float opacity) {
-        boolean hovered = isInside(currentMouseX, currentMouseY, x, y, HUD_STYLE_MENU_WIDTH, TARGET_HUD_STYLE_MENU_ROW);
-        if (hovered || enabled) {
-            RenderUtil.rect(x + 3f, y + 2f, HUD_STYLE_MENU_WIDTH - 6f, TARGET_HUD_STYLE_MENU_ROW - 4f, 4f,
-                    enabled ? withOpacity(ThemeManager.getThemeColor(), 0.55f * opacity) : withOpacity(new Color(38, 38, 42, 210), opacity));
-        }
-        RenderUtil.text(context, x + 8f, y + 5.2f, label, 7f,
-                withOpacity(enabled ? new Color(255, 255, 255) : new Color(160, 160, 165), opacity));
-    }
-
-    private void renderWatermarkSizeSlider(DrawContext context, float x, float y, float opacity) {
-        RenderUtil.text(context, x + 8f, y + 4f, "Size " + Math.round(watermarkScale * 100) + "%", 7f,
-                withOpacity(new Color(225, 225, 230), opacity));
-        float barX = x + 10f;
-        float barY = y + TARGET_HUD_STYLE_MENU_ROW - 9f;
-        float barW = HUD_STYLE_MENU_WIDTH - 20f;
-        RenderUtil.rect(barX, barY, barW, 2f, 1f, withOpacity(new Color(80, 80, 85), opacity));
-        float t = (watermarkScale - 0.5f) / 1.0f;
-        float knobX = barX + t * barW;
-        RenderUtil.rect(knobX - 2f, barY - 3f, 4f, 8f, 1f, withOpacity(ThemeManager.getThemeColor(), opacity));
     }
 
     private void renderHudStyleToggle(DrawContext context, float x, float y, String label, boolean selected, float opacity) {
@@ -797,6 +829,16 @@ public class HUD extends Function {
         }
         RenderUtil.text(context, x + 8f, y + 5.2f, label, 7f,
                 withOpacity(selected ? new Color(255, 255, 255) : new Color(210, 210, 215), opacity));
+    }
+
+    private void renderWatermarkToggle(DrawContext context, float x, float y, String label, boolean enabled, float opacity) {
+        boolean hovered = isInside(currentMouseX, currentMouseY, x, y, HUD_STYLE_MENU_WIDTH, TARGET_HUD_STYLE_MENU_ROW);
+        if (hovered || enabled) {
+            RenderUtil.rect(x + 3f, y + 2f, HUD_STYLE_MENU_WIDTH - 6f, TARGET_HUD_STYLE_MENU_ROW - 4f, 4f,
+                    enabled ? withOpacity(ThemeManager.getThemeColor(), 0.55f * opacity) : withOpacity(new Color(38, 38, 42, 210), opacity));
+        }
+        RenderUtil.text(context, x + 8f, y + 5.2f, label, 7f,
+                withOpacity(enabled ? new Color(255, 255, 255) : new Color(160, 160, 165), opacity));
     }
 
     private void renderTargetHudStyleOption(DrawContext context, float x, float y, String style, float opacity) {
@@ -1627,21 +1669,27 @@ public class HUD extends Function {
             targetHudStyle.setMode("\u041a\u0440\u0443\u0433\u043b\u044b\u0439");
             targetHudStyleMenuOpen = false;
         } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW) {
-            watermarkLogo = !watermarkLogo;
-        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW * 2f) {
-            watermarkPing = !watermarkPing;
-        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW * 2f && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW * 3f) {
             watermarkFps = !watermarkFps;
-        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW * 3f) {
+        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW * 2f) {
+            watermarkLogo = !watermarkLogo;
+        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW * 2f && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW * 3f) {
+            watermarkPing = !watermarkPing;
+        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW * 3f && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW * 4f) {
+            watermarkServer = !watermarkServer;
+        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW * 4f && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW * 5f) {
+            watermarkTps = !watermarkTps;
+        } else if (styleMenuTarget == HudElement.WATERMARK && mouseY >= optionsY + TARGET_HUD_STYLE_MENU_ROW * 5f) {
             float t = (mouseX - (targetHudStyleMenuX + 10f)) / (HUD_STYLE_MENU_WIDTH - 20f);
             t = clamp(t, 0f, 1f);
             watermarkScale = 0.5f + t * 1.0f;
+        } else if (styleMenuTarget == HudElement.SCOREBOARD && mouseY >= optionsY && mouseY < optionsY + TARGET_HUD_STYLE_MENU_ROW) {
+            scoreboard.setEnabled(!scoreboard.isEnabled());
         }
         return true;
     }
 
     private HudElement getHoveredHudElement(float mouseX, float mouseY) {
-        if (watermark.isEnabled() && isInside(mouseX, mouseY, watermarkX, watermarkY, watermarkWidth, WATERMARK_HEIGHT))
+        if (watermark.isEnabled() && isInside(mouseX, mouseY, watermarkX, watermarkY, watermarkWidth, watermarkHeight))
             return HudElement.WATERMARK;
         if (scoreboard.isEnabled() && isInside(mouseX, mouseY, scoreboardX, scoreboardY, scoreboardWidth, scoreboardHeight))
             return HudElement.SCOREBOARD;
@@ -1665,7 +1713,8 @@ public class HUD extends Function {
 
     private float getHudStyleMenuHeight() {
         if (styleMenuTarget == HudElement.TARGET_HUD) return TARGET_HUD_STYLE_MENU_ROW * 4f;
-        if (styleMenuTarget == HudElement.WATERMARK) return TARGET_HUD_STYLE_MENU_ROW * 5f;
+        if (styleMenuTarget == HudElement.WATERMARK) return TARGET_HUD_STYLE_MENU_ROW * 7f;
+        if (styleMenuTarget == HudElement.SCOREBOARD) return TARGET_HUD_STYLE_MENU_ROW * 2f;
         return TARGET_HUD_STYLE_MENU_ROW * 1f;
     }
 
@@ -1695,7 +1744,7 @@ public class HUD extends Function {
             return;
         }
 
-        if (watermark.isEnabled() && isInside(mouseX, mouseY, watermarkX, watermarkY, watermarkWidth, WATERMARK_HEIGHT)) {
+        if (watermark.isEnabled() && isInside(mouseX, mouseY, watermarkX, watermarkY, watermarkWidth, watermarkHeight)) {
             dragging = DragTarget.WATERMARK;
             dragOffsetX = mouseX - watermarkX;
             dragOffsetY = mouseY - watermarkY;
@@ -1712,7 +1761,7 @@ public class HUD extends Function {
     private void moveDragged(float mouseX, float mouseY) {
         if (dragging == DragTarget.WATERMARK) {
             watermarkX = clamp(mouseX - dragOffsetX, 2f, RenderUtil.getFixedScaledWidth() - watermarkWidth - 2f);
-            watermarkY = clamp(mouseY - dragOffsetY, 2f, RenderUtil.getFixedScaledHeight() - WATERMARK_HEIGHT - 2f);
+            watermarkY = clamp(mouseY - dragOffsetY, 2f, RenderUtil.getFixedScaledHeight() - watermarkHeight - 2f);
         } else if (dragging == DragTarget.SCOREBOARD) {
             scoreboardX = clamp(mouseX - dragOffsetX, 2f, RenderUtil.getFixedScaledWidth() - scoreboardWidth - 2f);
             scoreboardY = clamp(mouseY - dragOffsetY, 2f, RenderUtil.getFixedScaledHeight() - scoreboardHeight - 2f);

@@ -92,8 +92,17 @@ public class Arrows extends Function {
 
         double dx = targetPos.x - selfPos.x;
         double dz = targetPos.z - selfPos.z;
+        double distSq = dx * dx + dz * dz;
 
-        if (dx * dx + dz * dz < 0.01) return;
+        if (distSq < 0.01 || distSq > 25.0) return;
+
+        if (mc.world.raycast(new net.minecraft.world.RaycastContext(
+                selfPos.add(0.0, mc.player.getEyeHeight(mc.player.getPose()), 0.0),
+                targetPos.add(0.0, target.getEyeHeight(target.getPose()), 0.0),
+                net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
+                net.minecraft.world.RaycastContext.FluidHandling.NONE,
+                mc.player
+        )).getType() != net.minecraft.util.hit.HitResult.Type.MISS) return;
 
         float worldAngle = (float) Math.atan2(dz, dx);
         float playerAngle = (float) Math.toRadians(mc.player.getYaw()) + (float) Math.PI / 2f;

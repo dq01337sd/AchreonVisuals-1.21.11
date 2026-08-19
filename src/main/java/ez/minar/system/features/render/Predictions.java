@@ -70,13 +70,12 @@ public class Predictions extends Function {
 
     private final NumberSetting lineWidth = new NumberSetting("Line Width", 2.2, 0.8, 6.0, 0.1);
     private final NumberSetting maxTicks = new NumberSetting("Prediction Ticks", 80.0, 10.0, 180.0, 5.0);
-    private final BooleanSetting onlyMine = new BooleanSetting("Only Mine", true);
     private final BooleanSetting themeColor = new BooleanSetting("Theme Color", true);
     private final ColorSetting color = new ColorSetting("Color", new Color(120, 210, 255));
 
     public Predictions() {
         Instance = this;
-        addSettings(lineWidth, maxTicks, onlyMine, themeColor, color);
+        addSettings(lineWidth, maxTicks, themeColor, color);
         themeColor.runnable(this::updateVisibility);
     }
 
@@ -112,7 +111,6 @@ public class Predictions extends Function {
 
             float power = 1.5f;
             double gravity = 0.03;
-            boolean multishot = false;
 
             if (holdingBow) {
                 gravity = 0.05;
@@ -127,50 +125,18 @@ public class Predictions extends Function {
             } else if (holdingCrossbow) {
                 gravity = 0.05;
                 power = 3.15f;
-                net.minecraft.item.ItemStack holdingStack = mc.player.getMainHandStack().getItem() instanceof net.minecraft.item.CrossbowItem ? mc.player.getMainHandStack() : mc.player.getOffHandStack();
-                if (holdingStack != null && holdingStack.getEnchantments().toString().contains("multishot")) {
-                    multishot = true;
-                }
             }
 
-            java.util.List<Vec3d> velocities = new java.util.ArrayList<>();
-            if (multishot) {
-                velocities.add(getVelocityVector(yaw - 10, pitch).multiply(power));
-                velocities.add(getVelocityVector(yaw, pitch).multiply(power));
-                velocities.add(getVelocityVector(yaw + 10, pitch).multiply(power));
-            } else {
-                velocities.add(getVelocityVector(yaw, pitch).multiply(power));
-            }
+            Vec3d velocity = getVelocityVector(yaw, pitch).multiply(power);
 
             double eyeHeightOffset = mc.player.getEyePos().y - mc.player.getY();
             Vec3d realPosition = mc.player.getLerpedPos(tickDelta).add(0, eyeHeightOffset - 0.1, 0);
 
-            for (Vec3d velocity : velocities) {
-                SimulationResult result = simulatePath(realPosition, velocity, null, 0.99, gravity, mc.player);
-                if (result.points.size() >= MIN_POINTS && result.hitResult != null) {
-                    net.minecraft.util.math.Box box = getHitBox(result.hitResult);
-                    if (box != null) targetBoxes.add(box);
-                }
-            }
-        }
-
-        for (Entity entity : mc.world.getEntities()) {
-            if (!(entity instanceof ProjectileEntity projectile) || !shouldPredict(projectile)) continue;
-
-            SimulationResult result = simulate(projectile, tickDelta);
-            List<Vec3d> points = result.points;
-            if (points.size() < MIN_POINTS) continue;
-
-            if (result.hitResult != null) {
+            SimulationResult result = simulatePath(realPosition, velocity, null, 0.99, gravity, mc.player);
+            if (result.points.size() >= MIN_POINTS && result.hitResult != null) {
                 net.minecraft.util.math.Box box = getHitBox(result.hitResult);
                 if (box != null) targetBoxes.add(box);
             }
-
-            Vec3d endPos = points.get(points.size() - 1);
-            int ticksToLand = points.size() - 1;
-            double seconds = ticksToLand / 20.0;
-            String timeStr = String.format("%.1f s", seconds);
-            labelsToRender.add(new LabelData(endPos, getProjectileStack(projectile), timeStr));
         }
 
         updateAnimatedBoxes(targetBoxes);
@@ -185,10 +151,6 @@ public class Predictions extends Function {
         float g = -net.minecraft.util.math.MathHelper.sin(pitch * 0.017453292F);
         float h = net.minecraft.util.math.MathHelper.cos(yaw * 0.017453292F) * net.minecraft.util.math.MathHelper.cos(pitch * 0.017453292F);
         return new Vec3d(f, g, h).normalize();
-    }
-
-    private void renderPath(List<Vec3d> points, WorldRenderContext context, Vec3d camera, Color selectedColor) {
-        drawLinePath(context.consumers().getBuffer(LINE_LAYER), context.matrices().peek(), points, camera, selectedColor);
     }
 
     private static class LabelData {
@@ -308,30 +270,6 @@ public class Predictions extends Function {
         return from + (to - from) * progress;
     }
 
-    private net.minecraft.item.ItemStack getProjectileStack(ProjectileEntity projectile) {
-        if (projectile instanceof net.minecraft.entity.projectile.thrown.ThrownItemEntity thrownItem) {
-            return thrownItem.getStack();
-        } else if (projectile instanceof TridentEntity) {
-            return new net.minecraft.item.ItemStack(Items.TRIDENT);
-        } else if (projectile instanceof PersistentProjectileEntity) {
-            return new net.minecraft.item.ItemStack(Items.ARROW);
-        }
-        return new net.minecraft.item.ItemStack(Items.ENDER_PEARL);
-    }
-
-    private boolean shouldPredict(ProjectileEntity projectile) {
-        if (!projectile.isAlive() || projectile.getVelocity().lengthSquared() < MIN_VELOCITY_SQ) return false;
-        if (onlyMine.isEnabled() && projectile.getOwner() != mc.player) return false;
-        if (projectile instanceof FishingBobberEntity) return false;
-        if (projectile instanceof PersistentProjectileEntity persistent && !persistent.canHit()) return false;
-        return projectile instanceof ThrownEntity
-                || projectile instanceof PersistentProjectileEntity
-                || projectile instanceof TridentEntity
-                || projectile instanceof FireworkRocketEntity
-                || projectile instanceof AbstractFireballEntity
-                || projectile instanceof AbstractWindChargeEntity;
-    }
-
     private SimulationResult simulatePath(Vec3d position, Vec3d velocity, ProjectileEntity projectile, double defaultDrag, double gravity, Entity entityForRaycast) {
         List<Vec3d> points = new ArrayList<>();
         points.add(position);
@@ -380,12 +318,8 @@ public class Predictions extends Function {
             position = next;
 
             double drag;
-            if (projectile != null) {
-                drag = getDrag(projectile, position);
-            } else {
-                boolean inFluid = !mc.world.getFluidState(BlockPos.ofFloored(position)).isEmpty();
-                drag = inFluid ? 0.8 : defaultDrag;
-            }
+            boolean inFluid = !mc.world.getFluidState(BlockPos.ofFloored(position)).isEmpty();
+            drag = inFluid ? 0.8 : defaultDrag;
 
             velocity = velocity.multiply(drag);
             if (gravity > 0.0) {
@@ -395,50 +329,6 @@ public class Predictions extends Function {
 
         return new SimulationResult(points, finalHit);
     }
-
-    private SimulationResult simulate(ProjectileEntity projectile, float tickDelta) {
-        double gravity = projectile.hasNoGravity() ? 0.0 : getGravity(projectile);
-        SimulationResult result = simulatePath(projectile.getLerpedPos(1.0f), projectile.getVelocity(), projectile, 0.99, gravity, projectile);
-        if (!result.points.isEmpty()) {
-            result.points.set(0, projectile.getLerpedPos(tickDelta));
-        }
-        return result;
-    }
-
-    private double getDrag(ProjectileEntity projectile, Vec3d position) {
-        boolean inFluid = !mc.world.getFluidState(BlockPos.ofFloored(position)).isEmpty();
-        if (projectile instanceof TridentEntity) return inFluid ? 0.99 : 0.99;
-        if (projectile instanceof PersistentProjectileEntity) return inFluid ? 0.6 : 0.99;
-        if (projectile instanceof ThrownEntity) return inFluid ? 0.8 : 0.99;
-        if (projectile instanceof AbstractFireballEntity || projectile instanceof AbstractWindChargeEntity) return 0.95;
-        return 0.99;
-    }
-
-    private double getGravity(ProjectileEntity projectile) {
-        EntityType<?> type = projectile.getType();
-        if (type == EntityType.FIREBALL || type == EntityType.SMALL_FIREBALL || type == EntityType.DRAGON_FIREBALL || type == EntityType.WITHER_SKULL) {
-            return 0.0;
-        }
-        if (projectile instanceof PersistentProjectileEntity) return 0.05;
-        if (projectile instanceof ThrownEntity) return 0.03;
-        if (projectile instanceof AbstractWindChargeEntity) return 0.0;
-        if (projectile instanceof FireworkRocketEntity) return 0.0;
-        return 0.03;
-    }
-
-    private void drawLinePath(VertexConsumer buffer, MatrixStack.Entry entry, List<Vec3d> points, Vec3d camera, Color color) {
-        float width = (float) lineWidth.getValue();
-        int segCount = points.size() - 1;
-        for (int i = 0; i < segCount; i++) {
-            Vec3d start = points.get(i).subtract(camera);
-            Vec3d end = points.get(i + 1).subtract(camera);
-            float t = segCount <= 1 ? 1f : (float) i / segCount;
-            int alpha = (int) (255 * (0.12f + 0.88f * t));
-            line(buffer, entry, color, start.x, start.y, start.z, end.x, end.y, end.z, width, alpha);
-        }
-    }
-
-
 
     private void drawBoxOutline(VertexConsumer buffer, MatrixStack.Entry entry, Box box, Color color) {
         float width = (float) lineWidth.getValue();

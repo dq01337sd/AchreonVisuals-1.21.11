@@ -173,7 +173,7 @@ public class AltManagerScreen extends Screen {
         float listW = panelW - 130f;
         float listH = panelH - 70f;
 
-        RenderUtil.hudBlur(listX, listY, listW, listH, radius, 8f, alpha,  new Color(150, 150, 150, 20));
+        RenderUtil.rect(listX, listY, listW, listH, radius, new Color(75, 75, 80, Math.round(255f * alpha)));
         
         List<AltAccount> alts = AltManager.getAlts();
         
@@ -249,7 +249,7 @@ public class AltManagerScreen extends Screen {
                 
                 drawAnimIconButton(context, "R", btnStartX, currentY + 6f, btnSize, mx, my, itemAlpha, alt.isFavorite ? new Color(255, 200, 50) : new Color(200, 200, 200), iconAnim);
                 drawAnimIconButton(context, "T", btnStartX + btnSize + 5f, currentY + 6f, btnSize, mx, my, itemAlpha, new Color(200, 200, 200), iconAnim);
-                drawAnimIconButton(context, "S", btnStartX + (btnSize + 5f) * 2f, currentY + 6f, btnSize, mx, my, itemAlpha, new Color(255, 80, 80), iconAnim);
+                drawAnimIconButton(context, "S", btnStartX + (btnSize + 5f) * 2f, currentY + 6f, btnSize, mx, my, itemAlpha, new Color(200, 200, 200), iconAnim);
             }
             
             currentY += actualItemH + 2f;
@@ -269,7 +269,7 @@ public class AltManagerScreen extends Screen {
         float fX = controlsX + (controlsW - actualFieldW) / 2f;
         float fY = controlsY + (fieldH - actualFieldH) / 2f;
 
-        RenderUtil.hudBlur(fX, fY, actualFieldW, actualFieldH, 7, 5f, alpha,  new Color(150, 150, 150, 20));
+        RenderUtil.rect(fX, fY, actualFieldW, actualFieldH, 7, new Color(75, 75, 80, Math.round(255f * alpha)));
         
         if (nameInput.isEmpty() && !nameFocused) {
             RenderUtil.text(context, fX + 5, fY + 5, "Nickname", 10f, new Color(185, 190, 196, alphaInt));
@@ -343,7 +343,7 @@ public class AltManagerScreen extends Screen {
         float drawY = y + (h - actualH) / 2f;
         
         float radius = 4f;
-        RenderUtil.hudBlur(drawX, drawY, actualW, actualH, radius+3, 5f, alpha, new Color(150, 150, 150, 20));
+        RenderUtil.rect(drawX, drawY, actualW, actualH, radius + 3, new Color(75, 75, 80, Math.round(255f * alpha)));
         
         Color textColor = hover ? new Color(248, 250, 252, Math.round(255f * alpha)) : new Color(185, 190, 196, Math.round(210f * alpha));
         

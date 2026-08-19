@@ -46,7 +46,7 @@ public class LineGlyphs extends Function {
                     .build());
 
     public static LineGlyphs Instance;
-    private static final float LIFETIME = 20.0f;
+    private static final float LIFETIME = 15.0f;
     private static final float FADE_DURATION = 2.0f;
 
     public final NumberSetting count = new NumberSetting("Количество", 40, 5, 120, 1);
@@ -79,14 +79,14 @@ public class LineGlyphs extends Function {
     public void onUpdate(UpdateEvent event) {
         if (mc.player == null || mc.world == null) return;
 
-        float now = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
         float step = (float) (speed.getValue() * 0.14);
 
         Iterator<Glyph> iterator = glyphs.iterator();
         while (iterator.hasNext()) {
             Glyph glyph = iterator.next();
             if ((now - glyph.birthTime) / 1000f >= LIFETIME) {
-                iterator.remove();
+                glyph.reset(now);
                 continue;
             }
             glyph.update(step);
@@ -141,7 +141,7 @@ public class LineGlyphs extends Function {
         private int turnTimer;
         private boolean rising;
         private double targetY = -1.0;
-        private final long birthTime;
+        private long birthTime;
         private final Deque<Vec3d> path = new ArrayDeque<>();
         private static final int MAX_PATH = 36;
         private static final float MAX_RADIUS = 14f;
@@ -152,6 +152,22 @@ public class LineGlyphs extends Function {
             this.turnTimer = 0;
             this.birthTime = birthTime;
             this.path.addLast(pos);
+        }
+
+        private void reset(long now) {
+            Vec3d playerPos = mc.player != null ? mc.player.getEntityPos() : pos;
+            double angle = random.nextDouble() * Math.PI * 2.0;
+            double distance = 3.0 + random.nextDouble() * 6.0;
+            pos = playerPos
+                    .add(Math.cos(angle) * distance, 0.0, Math.sin(angle) * distance)
+                    .add(0.0, 1.0 + random.nextDouble() * 4.0, 0.0);
+            yaw = Math.round(random.nextDouble() * 4.0) % 4.0 * (Math.PI / 2.0);
+            turnTimer = 0;
+            rising = false;
+            targetY = -1.0;
+            birthTime = now;
+            path.clear();
+            path.addLast(pos);
         }
 
         private void update(float step) {
